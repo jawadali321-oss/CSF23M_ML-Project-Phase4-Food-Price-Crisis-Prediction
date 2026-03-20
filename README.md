@@ -1,110 +1,77 @@
-# ML Project Phase 3 - Food Price Crisis Prediction
+ML Project Phase 4 - Food Price Crisis Prediction
 
-**Name:** Jawad Ali  
-**Roll Number:** BCSF23M541  
-**Dataset:** Global Food Price Inflation  
-**Kaggle Notebook:** https://www.kaggle.com/code/bcsf23m541jawadali/csf23m-ml-project-phase3-food-price-crisis-predict  
-**GitHub (Phase 2):** https://github.com/jawadali321-oss/CSF23M_ML-Project-Phase2-Food-Price-Crisis-Prediction
+Name: Jawad Ali
+Roll Number: BCSF23M541
+Dataset: Global Food Price Inflation
+Kaggle: https://www.kaggle.com/code/bcsf23m541jawadali/csf23m-ml-project-phase4-food-price-crisis-predict
+GitHub: https://github.com/jawadali321-oss/CSF23M_ML-Project-Phase4-Food-Price-Crisis-Prediction
 
----
+Overview
 
-## What This Phase Covers
+Phase 4 is about methodology implementation. The goal was to train the models planned in Phase 1, handle class imbalance, evaluate results properly, and validate the model in ways that reflect real deployment.
 
-Phase 3 is about feature engineering. The goal was to find which features matter, build new ones, and check if they improve the model.
+Dataset
 
----
+Rows: 4434
+Target column: crisis_next_3m (binary - will there be a food crisis in the next 3 months)
+Input: Engineered CSV from Phase 3 with 29 features
+Region coverage: 100% using official region labels from Phase 2
 
-## Dataset
+Model Results
 
-- **Rows:** 4434
-- **Target column:** `crisis_next_3m` (binary — will there be a food crisis in the next 3 months)
-- **Input:** Preprocessed CSV from Phase 2
+Model                  F1-Score   Precision   Recall   ROC-AUC
+Logistic Regression    0.8211     0.7091      0.9750   0.9944
+Random Forest          0.8606     0.8353      0.8875   0.9947
+XGBoost                0.8780     0.8571      0.9000   0.9954
 
----
+Best Model: XGBoost with F1 0.8780 and AUC 0.9954
+Primary metric used throughout: F1-Score
 
-## Steps Done
+Time-Based Validation
 
-### 1. Feature Importance — 5 Methods
+Trained on data up to 2020, tested on 2021 onwards. Simulates real deployment conditions.
 
-Ran 5 different methods to understand which features are actually useful:
+Train period: up to 2020 - 3584 rows
+Test period: after 2020 - 850 rows
+Time-based F1: 0.8981
+Time-based AUC: 0.9911
 
-- **Random Forest** — FCAI and Inflation came out on top
-- **Gradient Boosting** — FCAI dominated heavily (0.79 importance score)
-- **Extra Trees** — More balanced, lag features ranked higher here
-- **SHAP** — Most reliable method; confirmed FCAI and Inflation as top 2
-- **Permutation Importance** — Tested by shuffling features and measuring AUC drop
-- **LIME** — Used for one sample to explain a single prediction locally
+Leave-One-Country-Out Validation
 
-Combined all 5 into a rank aggregation table to get a final consensus ranking.
+Trained on all countries except one, tested on that country alone. Proves model works in conflict zones it has never seen.
 
-**Top features across all methods:** `FCAI`, `Inflation`, `rolling_avg_3m`, `lag_2`
+Yemen              N=166   Crisis Rate=0.036   F1=0.6667   Recall=1.0000
+Syrian Arab Rep    N=142   Crisis Rate=0.331   F1=0.9565   Recall=0.9362
+Somalia            N=190   Crisis Rate=0.058   F1=1.0000   Recall=1.0000
+Afghanistan        N=190   Crisis Rate=0.053   F1=0.9524   Recall=1.0000
+Nigeria            N=190   Crisis Rate=0.142   F1=0.8136   Recall=0.8889
 
----
+Average F1: 0.8778
+Average Recall: 0.9650
 
-### 2. New Features Created (10 total)
+Region-wise SHAP Analysis
 
-| Feature | Why |
-|---|---|
-| `inflation_sq` | Inflation squared — captures non-linear price acceleration |
-| `price_spread` | High minus Low — measures daily market instability |
-| `close_open_ratio` | Close / Open — shows price direction within a session |
-| `inflation_volatility` | Inflation × Volatility — both being high together is worse than either alone |
-| `lag_diff` | lag_1 minus lag_2 — rate of change between months |
-| `price_vs_rolling` | Current price minus 3-month average — detects sudden spikes |
-| `fcai_inflation` | FCAI × Inflation — combines the two strongest signals |
-| `month_sin / month_cos` | Seasonal encoding — harvest and lean seasons follow a cycle |
-| `inflation_vel_sq` | Velocity squared — rapid acceleration is more dangerous than steady inflation |
-| `market_coverage_ratio` | Markets modeled / covered — low ratio means missing data = hidden risk |
+100% data coverage using official region labels. inflation_volatility dominated all regions with 10 out of 10 features shared across all region pairs. A single global model can serve WFP across all conflict zones without region-specific retraining.
 
----
+Minimal Viable Feature Set
 
-### 3. LightGBM Validation (default settings)
+15 features out of 29 maintain 98% of full model F1. Directly reduces data collection burden for WFP field workers in active conflict zones.
 
-| Model | Features | ROC-AUC |
-|---|---|---|
-| Baseline | 25 | 0.9957 |
-| + Feature Engineering | 36 | 0.9950 |
-| Pruned FE | 28 | 0.9950 |
-| Pruned FE + KMeans | 29 | 0.9956 |
+FCAI Validation
 
-AUC stayed above 0.995 throughout. The baseline was already strong so the delta is small, but the new features kept performance stable after pruning.
+Scenario A - FCAI only no raw components: F1 = 0.8554
+Scenario B - Raw components only no FCAI: F1 = 0.8795
+Scenario C - Full model FCAI and everything: F1 = 0.8727
 
----
+FCAI efficiency: 97.3% of raw-feature performance replacing 7 features with one composite score.
 
-### 4. Dropped Features
+Novelty Contributions
 
-Bottom 20% by LightGBM importance were removed:
-`number_of_markets_modeled`, `number_of_markets_covered`, `number_of_food_items`, `data_coverage_food`, `average_annualized_food_inflation`, `average_annualized_food_volatility`, `index_confidence_score`, `market_coverage_ratio`
+1. First crisis classifier on this dataset - only EDA existed on Kaggle before this work
+2. Region-wise SHAP with 100% data coverage - universal predictors confirmed across all conflict zones
+3. Minimal viable feature set - 15 features identified for WFP field deployment
 
-These had near-zero importance and removing them kept AUC the same while reducing noise.
+Files
 
----
-
-### 5. Standardization
-
-Applied `StandardScaler` on the pruned feature set. Required before KMeans since it uses distance.
-
----
-
-### 6. KMeans Cluster Feature
-
-Used 4 clusters. Result was meaningful:
-
-| Cluster | Crisis Rate |
-|---|---|
-| 0 | 5.1% |
-| 1 | 53.7% |
-| 2 | 42.0% |
-| 3 | 100% |
-
-Cluster 3 is pure crisis — every row in it had a food crisis. This cluster label was added as a new feature `vulnerability_cluster`.
-
----
-
-## Files
-
-| File | Description |
-|---|---|
-| `Phase3_Jawad_Ali_BCSF23M541.py` | Main script for Phase 3 |
-| `global_food_inflation_preprocessed.csv` | Input data from Phase 2 |
-| `global_food_inflation_phase3_FE.csv` | Output — final dataset with engineered features |
+Phase4_Jawad_Ali_BCSF23M541.py       Main Phase 4 script
+Phase4_Jawad_Ali_BCSF23M541.ipynb    Kaggle notebook with full outputs
